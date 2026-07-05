@@ -1,7 +1,7 @@
 # Missler Media Photography — no .env file required.
 # Edit the values under `web.environment` below, then deploy in ZimaOS.
 #
-# Builds directly from GitHub (no registry pull needed).
+#   docker compose pull && docker compose up -d
 
 services:
   sqlite:
@@ -26,8 +26,7 @@ services:
       retries: 5
 
   web:
-    build: https://github.com/killamfkr/Missler-Media.git#cursor/missler-media-photography-827c
-    image: missler-media:local
+    image: ghcr.io/killamfkr/missler-media:latest
     container_name: missler-web
     depends_on:
       sqlite:

@@ -45,3 +45,12 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+
+      - name: Make package public
+        run: |
+          gh api --method PUT \
+            -H "Accept: application/vnd.github+json" \
+            /user/packages/container/missler-media/visibility \
+            -f visibility=public
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
