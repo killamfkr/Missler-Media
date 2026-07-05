@@ -1,0 +1,54 @@
+# Missler Media Photography — no .env file required.
+# Edit the values under `web.environment` below, then deploy in ZimaOS.
+#
+#   docker compose pull && docker compose up -d
+
+services:
+  sqlite:
+    image: alpine:3.21
+    container_name: missler-sqlite
+    volumes:
+      - sqlite_data:/data
+    command:
+      - sh
+      - -c
+      - |
+        mkdir -p /data
+        touch /data/missler.db
+        chmod 777 /data
+        echo "SQLite volume ready at /data/missler.db"
+        exec sleep infinity
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "test", "-f", "/data/missler.db"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  web:
+    image: ghcr.io/killamfkr/missler-media:latest
+    container_name: missler-web
+    depends_on:
+      sqlite:
+        condition: service_healthy
+    ports:
+      - "3011:3000"
+    volumes:
+      - sqlite_data:/data
+    environment:
+      AUTH_SECRET: "change-this-to-a-long-random-secret"
+      AUTH_TRUST_HOST: "true"
+      AUTH_URL: "https://missler.dipolar.us"
+      DATABASE_URL: "file:/data/missler.db"
+      NEXT_PUBLIC_APP_URL: "https://missler.dipolar.us"
+      GOOGLE_REDIRECT_URI: "https://missler.dipolar.us/api/google/callback"
+      STRIPE_SECRET_KEY: ""
+      NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: ""
+      NEXT_PUBLIC_PAYPAL_CLIENT_ID: ""
+      PAYPAL_CLIENT_SECRET: ""
+      GOOGLE_CLIENT_ID: ""
+      GOOGLE_CLIENT_SECRET: ""
+    restart: unless-stopped
+
+volumes:
+  sqlite_data:

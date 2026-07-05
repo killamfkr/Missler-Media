@@ -1,0 +1,55 @@
+@import "tailwindcss";
+
+:root {
+  --background: #0c0b0a;
+  --foreground: #f5f0eb;
+  --muted: #a89f96;
+  --accent: #c9a96e;
+  --accent-dark: #a8864f;
+  --card: #161412;
+  --card-border: #2a2622;
+  --surface: #1e1b18;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-muted: var(--muted);
+  --color-accent: var(--accent);
+  --color-accent-dark: var(--accent-dark);
+  --color-card: var(--card);
+  --color-card-border: var(--card-border);
+  --color-surface: var(--surface);
+  --font-sans: var(--font-inter);
+  --font-serif: var(--font-playfair);
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-inter), system-ui, sans-serif;
+}
+
+.font-serif {
+  font-family: var(--font-playfair), Georgia, serif;
+}
+
+.btn-primary {
+  @apply inline-flex items-center justify-center rounded-sm bg-accent px-6 py-3 text-sm font-medium tracking-wide text-background transition hover:bg-accent-dark;
+}
+
+.btn-secondary {
+  @apply inline-flex items-center justify-center rounded-sm border border-card-border bg-transparent px-6 py-3 text-sm font-medium tracking-wide text-foreground transition hover:border-accent hover:text-accent;
+}
+
+.input-field {
+  @apply w-full rounded-sm border border-card-border bg-surface px-4 py-3 text-sm text-foreground placeholder:text-muted focus:border-accent focus:outline-none;
+}
+
+.card {
+  @apply rounded-sm border border-card-border bg-card p-6;
+}
+
+.section-title {
+  @apply font-serif text-3xl font-light tracking-tight md:text-4xl;
+}
