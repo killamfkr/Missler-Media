@@ -6,9 +6,11 @@ import { Footer } from "@/components/Footer";
 const adminLinks = [
   { href: "/admin", label: "Overview" },
   { href: "/admin/account", label: "My Account" },
+  { href: "/admin/schedule", label: "Schedule" },
   { href: "/admin/spotlight", label: "Homepage Photos" },
   { href: "/admin/open-days", label: "Open Days" },
   { href: "/admin/pricing", label: "Pricing" },
+  { href: "/admin/billing", label: "Promo & Tax" },
   { href: "/admin/users", label: "Accounts" },
   { href: "/admin/payments", label: "Payment Options" },
   { href: "/admin/storage", label: "Cloud Storage" },

@@ -21,6 +21,7 @@ export default function AdminOpenDaysPage() {
     date: "",
     startTime: "09:00",
     endTime: "17:00",
+    slotDurationMinutes: 60,
     maxAppointments: 4,
     notes: "",
   });
@@ -38,7 +39,7 @@ export default function AdminOpenDaysPage() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(form),
     });
-    setForm({ date: "", startTime: "09:00", endTime: "17:00", maxAppointments: 4, notes: "" });
+    setForm({ date: "", startTime: "09:00", endTime: "17:00", slotDurationMinutes: 60, maxAppointments: 4, notes: "" });
     load();
   }
 
@@ -64,11 +65,12 @@ export default function AdminOpenDaysPage() {
           />
           <input
             type="number"
-            min={1}
-            value={form.maxAppointments}
-            onChange={(e) => setForm({ ...form, maxAppointments: parseInt(e.target.value) })}
+            min={15}
+            step={15}
+            value={form.slotDurationMinutes}
+            onChange={(e) => setForm({ ...form, slotDurationMinutes: parseInt(e.target.value) })}
             className="input-field"
-            placeholder="Max appointments"
+            placeholder="Session length (minutes)"
           />
           <input
             type="time"

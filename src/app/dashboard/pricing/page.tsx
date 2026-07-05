@@ -7,7 +7,7 @@ import { Elements, PaymentElement, useStripe, useElements } from "@stripe/react-
 import { PayPalScriptProvider, PayPalButtons } from "@paypal/react-paypal-js";
 import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
-import { Check } from "lucide-react";
+import { Check, Tag } from "lucide-react";
 
 interface Package {
   id: string;
@@ -19,6 +19,7 @@ interface Package {
 
 interface Appointment {
   id: string;
+  slotTime?: string;
   openDay: { date: string };
   orders: { status: string }[];
 }
@@ -32,13 +33,16 @@ interface PaymentConfig {
   venmoUsername: string;
 }
 
-function StripeCheckout({
-  clientSecret,
-  onSuccess,
-}: {
-  clientSecret: string;
-  onSuccess: () => void;
-}) {
+interface PriceBreakdown {
+  subtotal: number;
+  discountAmount: number;
+  taxRate: number;
+  taxAmount: number;
+  total: number;
+  promoLabel?: string;
+}
+
+function StripeCheckout({ clientSecret, onSuccess }: { clientSecret: string; onSuccess: () => void }) {
   const stripe = useStripe();
   const elements = useElements();
   const [loading, setLoading] = useState(false);
@@ -49,17 +53,9 @@ function StripeCheckout({
     if (!stripe || !elements) return;
     setLoading(true);
     setError("");
-
-    const { error: stripeError } = await stripe.confirmPayment({
-      elements,
-      redirect: "if_required",
-    });
-
+    const { error: stripeError } = await stripe.confirmPayment({ elements, redirect: "if_required" });
     setLoading(false);
-    if (stripeError) {
-      setError(stripeError.message || "Payment failed.");
-      return;
-    }
+    if (stripeError) { setError(stripeError.message || "Payment failed."); return; }
     onSuccess();
   }
 
@@ -81,6 +77,9 @@ export default function PricingPage() {
   const [selectedPkg, setSelectedPkg] = useState("");
   const [selectedApt, setSelectedApt] = useState("");
   const [paymentMethod, setPaymentMethod] = useState("");
+  const [promoCode, setPromoCode] = useState("");
+  const [breakdown, setBreakdown] = useState<PriceBreakdown | null>(null);
+  const [promoError, setPromoError] = useState("");
   const [clientSecret, setClientSecret] = useState("");
   const [orderId, setOrderId] = useState("");
   const [venmoInfo, setVenmoInfo] = useState("");
@@ -89,14 +88,34 @@ export default function PricingPage() {
   useEffect(() => {
     fetch("/api/pricing").then((r) => r.json()).then(setPackages);
     fetch("/api/appointments").then((r) => r.json()).then(setAppointments);
-    fetch("/api/payment-config")
-      .then((r) => r.json())
-      .then(setConfig);
+    fetch("/api/payment-config").then((r) => r.json()).then(setConfig);
   }, []);
 
-  const unpaidAppointments = appointments.filter(
-    (a) => !a.orders.some((o) => o.status === "PAID")
-  );
+  const unpaidAppointments = appointments.filter((a) => !a.orders.some((o) => o.status === "PAID"));
+  const selectedPackage = packages.find((p) => p.id === selectedPkg);
+
+  async function applyPromo() {
+    if (!selectedPackage) return;
+    setPromoError("");
+    const res = await fetch("/api/promo-codes/validate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ subtotal: selectedPackage.price, promoCode }),
+    });
+    const data = await res.json();
+    if (!res.ok) { setPromoError(data.error); setBreakdown(null); return; }
+    setBreakdown(data);
+  }
+
+  useEffect(() => {
+    if (selectedPackage && !promoCode) {
+      fetch("/api/promo-codes/validate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ subtotal: selectedPackage.price }),
+      }).then((r) => r.json()).then(setBreakdown);
+    }
+  }, [selectedPackage, promoCode]);
 
   async function startPayment() {
     if (!selectedPkg || !selectedApt || !paymentMethod) return;
@@ -108,22 +127,18 @@ export default function PricingPage() {
         appointmentId: selectedApt,
         pricingPackageId: selectedPkg,
         paymentMethod,
+        promoCode: promoCode || undefined,
       }),
     });
 
     const data = await res.json();
-    if (!res.ok) {
-      alert(data.error);
-      return;
-    }
+    if (!res.ok) { alert(data.error); return; }
 
     setOrderId(data.orderId);
+    setBreakdown(data);
 
-    if (paymentMethod === "STRIPE" && data.clientSecret) {
-      setClientSecret(data.clientSecret);
-    } else if (paymentMethod === "VENMO") {
-      setVenmoInfo(data.instructions);
-    }
+    if (paymentMethod === "STRIPE" && data.clientSecret) setClientSecret(data.clientSecret);
+    else if (paymentMethod === "VENMO") setVenmoInfo(data.instructions);
   }
 
   async function markPaid() {
@@ -136,32 +151,22 @@ export default function PricingPage() {
     setSuccess(true);
   }
 
-  const stripePromise = config?.stripePublishableKey
-    ? loadStripe(config.stripePublishableKey)
-    : null;
-
-  const selectedPackage = packages.find((p) => p.id === selectedPkg);
+  const stripePromise = config?.stripePublishableKey ? loadStripe(config.stripePublishableKey) : null;
+  const displayTotal = breakdown?.total ?? selectedPackage?.price ?? 0;
 
   return (
     <>
       <Navbar />
       <main className="flex-1 pt-20">
         <div className="mx-auto max-w-5xl px-6 py-12">
-          <Link href="/dashboard" className="text-sm text-muted hover:text-accent">
-            &larr; Back to Dashboard
-          </Link>
+          <Link href="/dashboard" className="text-sm text-muted hover:text-accent">&larr; Back to Dashboard</Link>
           <h1 className="section-title mt-4">Session Pricing</h1>
-          <p className="mt-2 text-muted">
-            Choose a package and complete payment for your appointment.
-          </p>
+          <p className="mt-2 text-muted">Choose a package, apply a promo code, and complete payment.</p>
 
           {success ? (
             <div className="card mt-8 text-center">
               <Check className="mx-auto h-10 w-10 text-accent" />
               <p className="mt-4 font-serif text-xl">Payment Complete</p>
-              <p className="mt-2 text-sm text-muted">
-                Your photos will be available after your session.
-              </p>
             </div>
           ) : (
             <>
@@ -171,21 +176,16 @@ export default function PricingPage() {
                   return (
                     <button
                       key={pkg.id}
-                      onClick={() => setSelectedPkg(pkg.id)}
-                      className={`card text-left transition ${
-                        selectedPkg === pkg.id ? "border-accent" : "hover:border-accent/50"
-                      }`}
+                      onClick={() => { setSelectedPkg(pkg.id); setBreakdown(null); setPromoCode(""); }}
+                      className={`card text-left transition ${selectedPkg === pkg.id ? "border-accent" : "hover:border-accent/50"}`}
                     >
                       <h3 className="font-serif text-xl">{pkg.name}</h3>
-                      <p className="mt-2 text-3xl font-light text-accent">
-                        ${pkg.price.toFixed(0)}
-                      </p>
+                      <p className="mt-2 text-3xl font-light text-accent">${pkg.price.toFixed(0)}</p>
                       <p className="mt-2 text-sm text-muted">{pkg.description}</p>
                       <ul className="mt-4 space-y-1">
                         {features.map((f) => (
                           <li key={f} className="flex items-start gap-2 text-sm text-muted">
-                            <Check className="mt-0.5 h-4 w-4 shrink-0 text-accent" />
-                            {f}
+                            <Check className="mt-0.5 h-4 w-4 shrink-0 text-accent" />{f}
                           </li>
                         ))}
                       </ul>
@@ -195,59 +195,79 @@ export default function PricingPage() {
               </div>
 
               {selectedPkg && unpaidAppointments.length > 0 && (
-                <div className="card mt-8">
-                  <h3 className="font-serif text-lg">Select Appointment</h3>
-                  <select
-                    value={selectedApt}
-                    onChange={(e) => setSelectedApt(e.target.value)}
-                    className="input-field mt-3"
-                  >
-                    <option value="">Choose an appointment...</option>
-                    {unpaidAppointments.map((a) => (
-                      <option key={a.id} value={a.id}>
-                        {new Date(a.openDay.date).toLocaleDateString()}
-                      </option>
-                    ))}
-                  </select>
+                <div className="card mt-8 space-y-6">
+                  <div>
+                    <h3 className="font-serif text-lg">Select Appointment</h3>
+                    <select value={selectedApt} onChange={(e) => setSelectedApt(e.target.value)} className="input-field mt-3">
+                      <option value="">Choose an appointment...</option>
+                      {unpaidAppointments.map((a) => (
+                        <option key={a.id} value={a.id}>
+                          {new Date(a.openDay.date).toLocaleDateString()}
+                          {a.slotTime && ` at ${a.slotTime}`}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
 
-                  <h3 className="mt-6 font-serif text-lg">Payment Method</h3>
-                  <div className="mt-3 flex flex-wrap gap-3">
-                    {config?.stripeEnabled && (
-                      <button
-                        onClick={() => setPaymentMethod("STRIPE")}
-                        className={`rounded-sm border px-4 py-2 text-sm ${
-                          paymentMethod === "STRIPE" ? "border-accent text-accent" : "border-card-border"
-                        }`}
-                      >
-                        Credit Card (Stripe)
-                      </button>
-                    )}
-                    {config?.paypalEnabled && (
-                      <button
-                        onClick={() => setPaymentMethod("PAYPAL")}
-                        className={`rounded-sm border px-4 py-2 text-sm ${
-                          paymentMethod === "PAYPAL" ? "border-accent text-accent" : "border-card-border"
-                        }`}
-                      >
-                        PayPal
-                      </button>
-                    )}
-                    {config?.venmoEnabled && (
-                      <button
-                        onClick={() => setPaymentMethod("VENMO")}
-                        className={`rounded-sm border px-4 py-2 text-sm ${
-                          paymentMethod === "VENMO" ? "border-accent text-accent" : "border-card-border"
-                        }`}
-                      >
-                        Venmo
-                      </button>
-                    )}
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <Tag className="h-4 w-4 text-accent" />
+                      <h3 className="font-serif text-lg">Promo Code</h3>
+                    </div>
+                    <div className="mt-3 flex gap-2">
+                      <input
+                        value={promoCode}
+                        onChange={(e) => setPromoCode(e.target.value.toUpperCase())}
+                        className="input-field"
+                        placeholder="Enter code"
+                      />
+                      <button onClick={applyPromo} className="btn-secondary shrink-0 text-xs">Apply</button>
+                    </div>
+                    {promoError && <p className="mt-2 text-sm text-red-400">{promoError}</p>}
+                  </div>
+
+                  {breakdown && (
+                    <div className="rounded-sm border border-card-border bg-surface p-4 text-sm">
+                      <div className="flex justify-between"><span className="text-muted">Subtotal</span><span>${breakdown.subtotal.toFixed(2)}</span></div>
+                      {breakdown.discountAmount > 0 && (
+                        <div className="mt-1 flex justify-between text-green-400">
+                          <span>Discount{breakdown.promoLabel ? ` (${breakdown.promoLabel})` : ""}</span>
+                          <span>-${breakdown.discountAmount.toFixed(2)}</span>
+                        </div>
+                      )}
+                      {breakdown.taxAmount > 0 && (
+                        <div className="mt-1 flex justify-between"><span className="text-muted">Tax ({breakdown.taxRate}%)</span><span>${breakdown.taxAmount.toFixed(2)}</span></div>
+                      )}
+                      <div className="mt-2 flex justify-between border-t border-card-border pt-2 font-medium">
+                        <span>Total</span><span className="text-accent">${breakdown.total.toFixed(2)}</span>
+                      </div>
+                    </div>
+                  )}
+
+                  <div>
+                    <h3 className="font-serif text-lg">Payment Method</h3>
+                    <div className="mt-3 flex flex-wrap gap-3">
+                      {config?.stripeEnabled && (
+                        <button onClick={() => setPaymentMethod("STRIPE")} className={`rounded-sm border px-4 py-2 text-sm ${paymentMethod === "STRIPE" ? "border-accent text-accent" : "border-card-border"}`}>
+                          Credit Card
+                        </button>
+                      )}
+                      {config?.paypalEnabled && (
+                        <button onClick={() => setPaymentMethod("PAYPAL")} className={`rounded-sm border px-4 py-2 text-sm ${paymentMethod === "PAYPAL" ? "border-accent text-accent" : "border-card-border"}`}>
+                          PayPal
+                        </button>
+                      )}
+                      {config?.venmoEnabled && (
+                        <button onClick={() => setPaymentMethod("VENMO")} className={`rounded-sm border px-4 py-2 text-sm ${paymentMethod === "VENMO" ? "border-accent text-accent" : "border-card-border"}`}>
+                          Venmo
+                        </button>
+                      )}
+                    </div>
                   </div>
 
                   {selectedApt && paymentMethod && !clientSecret && !venmoInfo && (
-                    <button onClick={startPayment} className="btn-primary mt-6">
-                      Continue to Payment
-                      {selectedPackage && ` — $${selectedPackage.price.toFixed(2)}`}
+                    <button onClick={startPayment} className="btn-primary">
+                      Continue to Payment — ${displayTotal.toFixed(2)}
                     </button>
                   )}
 
@@ -257,7 +277,7 @@ export default function PricingPage() {
                     </Elements>
                   )}
 
-                  {paymentMethod === "PAYPAL" && orderId && config?.paypalClientId && selectedPackage && (
+                  {paymentMethod === "PAYPAL" && orderId && config?.paypalClientId && breakdown && (
                     <PayPalScriptProvider options={{ clientId: config.paypalClientId, currency: "USD" }}>
                       <div className="mt-4">
                         <PayPalButtons
@@ -265,32 +285,19 @@ export default function PricingPage() {
                           createOrder={(_, actions) =>
                             actions.order.create({
                               intent: "CAPTURE",
-                              purchase_units: [
-                                {
-                                  amount: { value: selectedPackage.price.toFixed(2), currency_code: "USD" },
-                                  description: selectedPackage.name,
-                                },
-                              ],
+                              purchase_units: [{ amount: { value: breakdown.total.toFixed(2), currency_code: "USD" }, description: selectedPackage?.name }],
                             })
                           }
-                          onApprove={async (_, actions) => {
-                            await actions.order?.capture();
-                            await markPaid();
-                          }}
+                          onApprove={async (_, actions) => { await actions.order?.capture(); await markPaid(); }}
                         />
                       </div>
                     </PayPalScriptProvider>
                   )}
 
                   {venmoInfo && (
-                    <div className="mt-4 rounded-sm border border-card-border bg-surface p-4">
+                    <div className="rounded-sm border border-card-border bg-surface p-4">
                       <p className="text-sm">{venmoInfo}</p>
-                      <p className="mt-2 text-xs text-muted">
-                        After sending payment, click below to confirm.
-                      </p>
-                      <button onClick={markPaid} className="btn-primary mt-4 text-xs">
-                        I&apos;ve Sent Venmo Payment
-                      </button>
+                      <button onClick={markPaid} className="btn-primary mt-4 text-xs">I&apos;ve Sent Venmo Payment</button>
                     </div>
                   )}
                 </div>
@@ -299,9 +306,7 @@ export default function PricingPage() {
               {selectedPkg && unpaidAppointments.length === 0 && (
                 <div className="card mt-8 text-center text-muted">
                   <p>Book an appointment first, then return here to select a package.</p>
-                  <Link href="/dashboard/appointments" className="btn-primary mt-4 inline-flex text-xs">
-                    Book Appointment
-                  </Link>
+                  <Link href="/dashboard/appointments" className="btn-primary mt-4 inline-flex text-xs">Book Appointment</Link>
                 </div>
               )}
             </>

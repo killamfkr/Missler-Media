@@ -15,7 +15,7 @@ export async function GET() {
 export async function POST(request: Request) {
   const authResult = await requireApiAdmin();
   if ("error" in authResult) return authResult.error;
-  const { date, startTime, endTime, maxAppointments, notes } =
+  const { date, startTime, endTime, maxAppointments, slotDurationMinutes, notes } =
     await request.json();
 
   const day = await prisma.openDay.create({
@@ -23,6 +23,7 @@ export async function POST(request: Request) {
       date: new Date(date),
       startTime: startTime || "09:00",
       endTime: endTime || "17:00",
+      slotDurationMinutes: slotDurationMinutes || 60,
       maxAppointments: maxAppointments || 4,
       notes: notes || null,
     },

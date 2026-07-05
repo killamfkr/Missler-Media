@@ -6,30 +6,39 @@ import { format } from "date-fns";
 import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
 
+interface Slot {
+  time: string;
+  label: string;
+}
+
 interface OpenDay {
   id: string;
   date: string;
   startTime: string;
   endTime: string;
   notes?: string;
-  spotsRemaining: number;
-  isFull: boolean;
+  availableSlots: Slot[];
 }
 
 export default function AppointmentsPage() {
   const [openDays, setOpenDays] = useState<OpenDay[]>([]);
-  const [selected, setSelected] = useState("");
+  const [selectedDay, setSelectedDay] = useState("");
+  const [selectedSlot, setSelectedSlot] = useState("");
   const [notes, setNotes] = useState("");
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
-  useEffect(() => {
+  function load() {
     fetch("/api/open-days").then((r) => r.json()).then(setOpenDays);
-  }, []);
+  }
+
+  useEffect(() => { load(); }, []);
+
+  const currentDay = openDays.find((d) => d.id === selectedDay);
 
   async function book() {
-    if (!selected) return;
+    if (!selectedDay || !selectedSlot) return;
     setLoading(true);
     setError("");
     setMessage("");
@@ -37,7 +46,7 @@ export default function AppointmentsPage() {
     const res = await fetch("/api/appointments", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ openDayId: selected, notes }),
+      body: JSON.stringify({ openDayId: selectedDay, slotTime: selectedSlot, notes }),
     });
 
     const data = await res.json();
@@ -45,13 +54,15 @@ export default function AppointmentsPage() {
 
     if (!res.ok) {
       setError(data.error);
+      if (res.status === 409) load();
       return;
     }
 
     setMessage("Appointment booked! Head to pricing to select your package.");
-    setSelected("");
+    setSelectedDay("");
+    setSelectedSlot("");
     setNotes("");
-    fetch("/api/open-days").then((r) => r.json()).then(setOpenDays);
+    load();
   }
 
   return (
@@ -64,7 +75,7 @@ export default function AppointmentsPage() {
           </Link>
           <h1 className="section-title mt-4">Book an Appointment</h1>
           <p className="mt-2 text-muted">
-            Select an available open day for your photography session.
+            Choose a day and time slot. Each slot can only be booked once to prevent scheduling conflicts.
           </p>
 
           {message && (
@@ -85,39 +96,52 @@ export default function AppointmentsPage() {
               </div>
             ) : (
               openDays.map((day) => (
-                <label
+                <button
                   key={day.id}
-                  className={`card flex cursor-pointer items-center gap-4 transition ${
-                    day.isFull ? "opacity-50" : "hover:border-accent/50"
-                  } ${selected === day.id ? "border-accent" : ""}`}
+                  onClick={() => { setSelectedDay(day.id); setSelectedSlot(""); }}
+                  className={`card w-full text-left transition ${
+                    selectedDay === day.id ? "border-accent" : "hover:border-accent/50"
+                  }`}
                 >
-                  <input
-                    type="radio"
-                    name="openDay"
-                    value={day.id}
-                    disabled={day.isFull}
-                    checked={selected === day.id}
-                    onChange={() => setSelected(day.id)}
-                    className="accent-accent"
-                  />
-                  <div className="flex-1">
-                    <p className="font-medium">
-                      {format(new Date(day.date), "EEEE, MMMM d, yyyy")}
-                    </p>
-                    <p className="text-sm text-muted">
-                      {day.startTime} – {day.endTime}
-                      {day.notes && ` · ${day.notes}`}
-                    </p>
-                  </div>
-                  <span className="text-xs text-muted">
-                    {day.isFull ? "Full" : `${day.spotsRemaining} spots left`}
-                  </span>
-                </label>
+                  <p className="font-medium">
+                    {format(new Date(day.date), "EEEE, MMMM d, yyyy")}
+                  </p>
+                  <p className="text-sm text-muted">
+                    {day.startTime} – {day.endTime}
+                    {day.notes && ` · ${day.notes}`}
+                  </p>
+                  <p className="mt-1 text-xs text-accent">
+                    {day.availableSlots.length} time slot{day.availableSlots.length !== 1 ? "s" : ""} available
+                  </p>
+                </button>
               ))
             )}
           </div>
 
-          {selected && (
+          {currentDay && (
+            <div className="mt-6">
+              <label className="mb-2 block text-xs uppercase tracking-wider text-muted">
+                Select a Time Slot
+              </label>
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                {currentDay.availableSlots.map((slot) => (
+                  <button
+                    key={slot.time}
+                    onClick={() => setSelectedSlot(slot.time)}
+                    className={`rounded-sm border px-3 py-2 text-sm transition ${
+                      selectedSlot === slot.time
+                        ? "border-accent bg-accent/10 text-accent"
+                        : "border-card-border hover:border-accent/50"
+                    }`}
+                  >
+                    {slot.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {selectedSlot && (
             <div className="mt-6">
               <label className="mb-1 block text-xs uppercase tracking-wider text-muted">
                 Notes (optional)
@@ -133,7 +157,7 @@ export default function AppointmentsPage() {
 
           <button
             onClick={book}
-            disabled={!selected || loading}
+            disabled={!selectedDay || !selectedSlot || loading}
             className="btn-primary mt-6 disabled:opacity-50"
           >
             {loading ? "Booking..." : "Confirm Appointment"}
