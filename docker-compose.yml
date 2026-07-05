@@ -37,15 +37,15 @@ services:
       sqlite:
         condition: service_healthy
     ports:
-      - "3000:3000"
+      - "3011:3000"
     volumes:
       - sqlite_data:/data
     environment:
       # ── Required ──────────────────────────────────────────────
       AUTH_SECRET: "change-this-to-a-long-random-secret"
       DATABASE_URL: "file:/data/missler.db"
-      NEXT_PUBLIC_APP_URL: "http://localhost:3000"
-      GOOGLE_REDIRECT_URI: "http://localhost:3000/api/google/callback"
+      NEXT_PUBLIC_APP_URL: "http://localhost:3011"
+      GOOGLE_REDIRECT_URI: "http://localhost:3011/api/google/callback"
 
       # ── Stripe (optional) ─────────────────────────────────────
       STRIPE_SECRET_KEY: ""
