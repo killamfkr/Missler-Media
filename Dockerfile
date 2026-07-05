@@ -8,7 +8,10 @@ WORKDIR /app
 
 FROM base AS builder
 
+# Prisma schema must exist before npm ci (postinstall runs prisma generate)
 COPY package.json package-lock.json ./
+COPY prisma.config.ts ./
+COPY prisma ./prisma
 RUN npm ci
 
 COPY . .
