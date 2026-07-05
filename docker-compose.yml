@@ -1,14 +1,9 @@
 # Missler Media Photography — no .env file required.
-# Edit the values under `web.environment` below, then run:
-#   docker compose pull && docker compose up -d
+# Edit the values under `web.environment` below, then deploy in ZimaOS.
 #
-# Download only this file (no git clone):
-#   curl -fsSL -o docker-compose.yml \
-#     https://raw.githubusercontent.com/killamfkr/Missler-Media/cursor/missler-media-photography-827c/docker-compose.yml
+# Builds directly from GitHub (no registry pull needed).
 
 services:
-  # SQLite sidecar — owns the persistent database volume.
-  # SQLite is file-based (not a network server); this container keeps /data alive.
   sqlite:
     image: alpine:3.21
     container_name: missler-sqlite
@@ -31,7 +26,8 @@ services:
       retries: 5
 
   web:
-    image: ghcr.io/killamfkr/missler-media:latest
+    build: https://github.com/killamfkr/Missler-Media.git#cursor/missler-media-photography-827c
+    image: missler-media:local
     container_name: missler-web
     depends_on:
       sqlite:
@@ -41,21 +37,14 @@ services:
     volumes:
       - sqlite_data:/data
     environment:
-      # ── Required ──────────────────────────────────────────────
       AUTH_SECRET: "change-this-to-a-long-random-secret"
       DATABASE_URL: "file:/data/missler.db"
-      NEXT_PUBLIC_APP_URL: "http://localhost:3011"
-      GOOGLE_REDIRECT_URI: "http://localhost:3011/api/google/callback"
-
-      # ── Stripe (optional) ─────────────────────────────────────
+      NEXT_PUBLIC_APP_URL: "http://YOUR-ZIMAOS-IP:3011"
+      GOOGLE_REDIRECT_URI: "http://YOUR-ZIMAOS-IP:3011/api/google/callback"
       STRIPE_SECRET_KEY: ""
       NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: ""
-
-      # ── PayPal (optional) ─────────────────────────────────────
       NEXT_PUBLIC_PAYPAL_CLIENT_ID: ""
       PAYPAL_CLIENT_SECRET: ""
-
-      # ── Google Photos (optional) ──────────────────────────────
       GOOGLE_CLIENT_ID: ""
       GOOGLE_CLIENT_SECRET: ""
     restart: unless-stopped
