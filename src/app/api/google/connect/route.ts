@@ -5,10 +5,10 @@ import { getGoogleAuthUrl } from "@/lib/google-photos";
 export async function GET() {
   const authResult = await requireApiAdmin();
   if ("error" in authResult) return authResult.error;
-  const url = getGoogleAuthUrl();
+  const url = await getGoogleAuthUrl();
   if (!url) {
     return NextResponse.json(
-      { error: "Google OAuth not configured. Set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET." },
+      { error: "Google OAuth not configured. Add credentials in Admin → Cloud Storage." },
       { status: 400 }
     );
   }

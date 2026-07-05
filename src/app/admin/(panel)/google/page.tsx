@@ -1,10 +1,5 @@
-import { Suspense } from "react";
-import AdminGooglePage from "./GooglePage";
+import { redirect } from "next/navigation";
 
-export default function Page() {
-  return (
-    <Suspense fallback={<p className="text-muted">Loading...</p>}>
-      <AdminGooglePage />
-    </Suspense>
-  );
+export default function GoogleRedirect() {
+  redirect("/admin/storage");
 }

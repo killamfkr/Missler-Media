@@ -1,23 +1,20 @@
 import { google } from "googleapis";
 import { prisma } from "@/lib/prisma";
+import { getGoogleConfig } from "@/lib/settings";
 
 const SCOPES = ["https://www.googleapis.com/auth/photoslibrary.readonly"];
 const PHOTOS_API = "https://photoslibrary.googleapis.com/v1";
 
-export function getGoogleOAuthClient() {
-  const clientId = process.env.GOOGLE_CLIENT_ID;
-  const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
-  const redirectUri =
-    process.env.GOOGLE_REDIRECT_URI ||
-    `${process.env.NEXT_PUBLIC_APP_URL}/api/google/callback`;
+export async function getGoogleOAuthClient() {
+  const { clientId, clientSecret, redirectUri } = await getGoogleConfig();
 
   if (!clientId || !clientSecret) return null;
 
   return new google.auth.OAuth2(clientId, clientSecret, redirectUri);
 }
 
-export function getGoogleAuthUrl() {
-  const oauth2Client = getGoogleOAuthClient();
+export async function getGoogleAuthUrl() {
+  const oauth2Client = await getGoogleOAuthClient();
   if (!oauth2Client) return null;
   return oauth2Client.generateAuthUrl({
     access_type: "offline",
@@ -26,12 +23,22 @@ export function getGoogleAuthUrl() {
   });
 }
 
+export async function isGoogleConfigured() {
+  const { clientId, clientSecret } = await getGoogleConfig();
+  return Boolean(clientId && clientSecret);
+}
+
 export async function getStoredGoogleTokens() {
   return prisma.googleToken.findFirst({ orderBy: { updatedAt: "desc" } });
 }
 
+export async function isGoogleConnected() {
+  const tokens = await getStoredGoogleTokens();
+  return Boolean(tokens?.accessToken);
+}
+
 async function getAccessToken(): Promise<string | null> {
-  const oauth2Client = getGoogleOAuthClient();
+  const oauth2Client = await getGoogleOAuthClient();
   if (!oauth2Client) return null;
 
   const tokens = await getStoredGoogleTokens();
@@ -138,4 +145,8 @@ export async function listAlbumPhotos(albumId: string) {
   } while (pageToken);
 
   return items;
+}
+
+export async function disconnectGoogle() {
+  await prisma.googleToken.deleteMany();
 }

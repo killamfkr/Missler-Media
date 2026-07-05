@@ -6,23 +6,24 @@ export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const code = searchParams.get("code");
   const error = searchParams.get("error");
+  const base = process.env.NEXT_PUBLIC_APP_URL || "";
 
   if (error) {
     return NextResponse.redirect(
-      new URL("/admin/google?error=auth_denied", process.env.NEXT_PUBLIC_APP_URL)
+      new URL("/admin/storage?error=auth_denied", base)
     );
   }
 
   if (!code) {
     return NextResponse.redirect(
-      new URL("/admin/google?error=no_code", process.env.NEXT_PUBLIC_APP_URL)
+      new URL("/admin/storage?error=no_code", base)
     );
   }
 
-  const oauth2Client = getGoogleOAuthClient();
+  const oauth2Client = await getGoogleOAuthClient();
   if (!oauth2Client) {
     return NextResponse.redirect(
-      new URL("/admin/google?error=not_configured", process.env.NEXT_PUBLIC_APP_URL)
+      new URL("/admin/storage?error=not_configured", base)
     );
   }
 
@@ -50,11 +51,11 @@ export async function GET(request: Request) {
     }
 
     return NextResponse.redirect(
-      new URL("/admin/google?success=true", process.env.NEXT_PUBLIC_APP_URL)
+      new URL("/admin/storage?success=true", base)
     );
   } catch {
     return NextResponse.redirect(
-      new URL("/admin/google?error=token_failed", process.env.NEXT_PUBLIC_APP_URL)
+      new URL("/admin/storage?error=token_failed", base)
     );
   }
 }
