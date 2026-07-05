@@ -37,9 +37,11 @@ services:
       - sqlite_data:/data
     environment:
       AUTH_SECRET: "change-this-to-a-long-random-secret"
+      AUTH_TRUST_HOST: "true"
+      AUTH_URL: "https://missler.dipolar.us"
       DATABASE_URL: "file:/data/missler.db"
-      NEXT_PUBLIC_APP_URL: "http://YOUR-ZIMAOS-IP:3011"
-      GOOGLE_REDIRECT_URI: "http://YOUR-ZIMAOS-IP:3011/api/google/callback"
+      NEXT_PUBLIC_APP_URL: "https://missler.dipolar.us"
+      GOOGLE_REDIRECT_URI: "https://missler.dipolar.us/api/google/callback"
       STRIPE_SECRET_KEY: ""
       NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: ""
       NEXT_PUBLIC_PAYPAL_CLIENT_ID: ""
