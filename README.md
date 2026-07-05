@@ -12,7 +12,70 @@ A full-stack photography business website with client accounts, appointment book
 - **Photo galleries** — Google Photos integration; clients access purchased photos after sessions
 - **Admin panel** — Manage spotlight photos, open days, pricing, accounts, payments, and photo access
 
-## Quick Start
+## Docker (no `.env`, no git clone)
+
+Pull the pre-built image from GitHub Container Registry. All configuration lives in `docker-compose.yml` — no `.env` file needed.
+
+### 1. Download only the compose file
+
+```bash
+curl -fsSL -o docker-compose.yml \
+  https://raw.githubusercontent.com/killamfkr/Missler-Media/cursor/missler-media-photography-827c/docker-compose.yml
+```
+
+### 2. Edit variables in `docker-compose.yml`
+
+Open the file and update the values under `web.environment` (at minimum `AUTH_SECRET` and your public URL if not using localhost).
+
+### 3. Start
+
+```bash
+docker compose pull
+docker compose up -d
+```
+
+Open **http://localhost:3000**
+
+**Default admin:** `admin@misslermedia.com` / `admin12345`
+
+### Architecture
+
+| Service | Role |
+|---------|------|
+| `sqlite` | Sidecar that owns the persistent `/data` volume for the SQLite database file |
+| `web` | App image from `ghcr.io/killamfkr/missler-media:latest` — shares the same volume |
+
+The SQLite sidecar does not run a database server (SQLite is file-based). It holds the volume so your data survives container restarts.
+
+### Production URL
+
+When using a real domain, update these in `docker-compose.yml`:
+
+```yaml
+NEXT_PUBLIC_APP_URL: "https://photos.yourdomain.com"
+GOOGLE_REDIRECT_URI: "https://photos.yourdomain.com/api/google/callback"
+```
+
+Also add the same redirect URI in Google Cloud Console.
+
+### Building the image yourself
+
+If the registry image is not available yet, build locally:
+
+```bash
+docker build -t ghcr.io/killamfkr/missler-media:latest .
+docker compose up -d
+```
+
+Or change `docker-compose.yml` to build from source:
+
+```yaml
+web:
+  build: .
+  # image: ghcr.io/killamfkr/missler-media:latest  # comment out image line
+```
+
+## Quick Start (local development)
 
 ```bash
 npm install
