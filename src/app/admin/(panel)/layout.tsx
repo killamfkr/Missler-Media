@@ -14,7 +14,7 @@ const adminLinks = [
   { href: "/admin/google", label: "Google Photos" },
 ];
 
-export default async function AdminLayout({
+export default async function AdminPanelLayout({
   children,
 }: {
   children: React.ReactNode;

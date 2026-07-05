@@ -17,6 +17,9 @@ export function Footer() {
           <Link href="/login" className="hover:text-accent">
             Client Login
           </Link>
+          <Link href="/admin/login" className="hover:text-accent">
+            Studio Admin
+          </Link>
         </div>
         <p className="text-xs text-muted">
           &copy; {new Date().getFullYear()} Missler Media Photography

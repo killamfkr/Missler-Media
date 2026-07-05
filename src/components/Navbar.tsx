@@ -53,6 +53,12 @@ export function Navbar() {
               >
                 Sign In
               </Link>
+              <Link
+                href="/admin/login"
+                className="text-sm text-muted transition hover:text-foreground"
+              >
+                Admin
+              </Link>
               <Link href="/register" className="btn-primary text-xs">
                 Book Appointment
               </Link>
@@ -93,6 +99,9 @@ export function Navbar() {
               <>
                 <Link href="/login" onClick={() => setOpen(false)} className="text-sm text-muted">
                   Sign In
+                </Link>
+                <Link href="/admin/login" onClick={() => setOpen(false)} className="text-sm text-muted">
+                  Admin
                 </Link>
                 <Link href="/register" onClick={() => setOpen(false)} className="btn-primary text-center text-xs">
                   Book Appointment
